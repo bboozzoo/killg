@@ -45,13 +45,6 @@ void sig_handle(int signal) {
     do_run = false;
 }
 
-void draw_img(SDL_Surface * img, SDL_Surface * on_what, uint32_t x, uint32_t y) {
-    SDL_Rect rect;
-    rect.x = x;
-    rect.y = y;
-    SDL_BlitSurface(img, NULL, on_what, &rect);
-}
-
 void draw_player(uint32_t x, uint32_t y) {
     glPushMatrix();
     glLoadIdentity();
@@ -189,8 +182,6 @@ int main (int argc, char * argv[]) {
 
     player_x = surface->w / 2.0 - player_img->w / 2.0;
     player_y = surface->h / 2.0 - player_img->h / 2.0;
-    /*SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));
-    draw_img(player_img, surface, player_x, player_y);*/
     do_run = true;
 
     last_tick = SDL_GetTicks();
@@ -310,7 +301,6 @@ int main (int argc, char * argv[]) {
             }
 
             set2D();
-            /*draw_img(player_img, surface, player_x, player_y);*/
             draw_player(player_x, player_y);
             draw_arrow(player_x, player_y, pointer_x, pointer_y);
             unset2D();
