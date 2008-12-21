@@ -31,10 +31,10 @@ volatile bool do_run = false;
 Mix_Chunk * shoot_snd = NULL;
 Mix_Chunk * reload_snd = NULL;
 SDL_Surface * player_img = NULL;
-uint32_t player_x = 0;
-uint32_t player_y = 0;
-uint32_t player_moving_x = 0;
-uint32_t player_moving_y = 0;
+int32_t player_x = 0;
+int32_t player_y = 0;
+int32_t player_moving_x = 0;
+int32_t player_moving_y = 0;
 uint32_t pointer_x = 0;
 uint32_t pointer_y = 0;
 uint32_t last_tick = 0;
@@ -293,6 +293,22 @@ int main (int argc, char * argv[]) {
             /*SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));*/
             player_x += player_moving_x;
             player_y -= player_moving_y;
+            if (player_x > VIDEO_W) {
+                LOG_INFO("player -> far right end");
+                player_x = VIDEO_W;
+            } else if (player_x < 0) {
+                LOG_INFO("player -> far left end");
+                player_x = 0;
+            }
+
+            if (player_y > VIDEO_H) {
+                LOG_INFO("player -> far bottom end");
+                player_y = VIDEO_H;
+            } else if (player_y < 0) {
+                LOG_INFO("player -> far top end");
+                player_y = 0;
+            }
+
             set2D();
             /*draw_img(player_img, surface, player_x, player_y);*/
             draw_player(player_x, player_y);
