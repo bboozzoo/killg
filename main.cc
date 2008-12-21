@@ -1,8 +1,10 @@
 #include <signal.h>
+#include <cmath>
 #include "logger.h"
 #include <SDL/SDL.h>
 #include <SDL/SDL_mixer.h>
 #include <SDL/SDL_image.h>
+#include <GL/gl.h>
 
 #define VIDEO_W 640
 #define VIDEO_H 480
@@ -23,6 +25,7 @@
 
 #define PLAYER_IMG "data/player.png"
 
+
 /* static stuff */
 volatile bool do_run = false;
 Mix_Chunk * shoot_snd = NULL;
@@ -32,6 +35,8 @@ uint32_t player_x = 0;
 uint32_t player_y = 0;
 uint32_t player_moving_x = 0;
 uint32_t player_moving_y = 0;
+uint32_t pointer_x = 0;
+uint32_t pointer_y = 0;
 uint32_t last_tick = 0;
 
 void sig_handle(int signal) {
@@ -45,25 +50,109 @@ void draw_img(SDL_Surface * img, SDL_Surface * on_what, uint32_t x, uint32_t y) 
     SDL_BlitSurface(img, NULL, on_what, &rect);
 }
 
+void draw_player(uint32_t x, uint32_t y) {
+    glBegin(GL_TRIANGLES);
+    glColor3ub(255, 0, 0);
+    glVertex2d(x - 20, y - 10);
+    glColor3ub(0, 255, 0);
+    glVertex2d(x + 20, y - 10);
+    glColor3ub(0, 0, 255);
+    glVertex2d(x, y + 10);
+    glEnd();
+}
+
+void draw_arrow(uint32_t width, uint32_t legth, double point_to_x, double point_to_y) {
+    double center_x = VIDEO_W / 2;
+    double center_y = VIDEO_H / 2;
+    glPushMatrix();
+    glLoadIdentity();
+    glBegin(GL_POLYGON);
+    glColor3ub(0, 0, 0);
+    glVertex2d(center_x, center_y - 10);
+    glVertex2d(center_x - 10, center_y);
+    glVertex2d(center_x - 5, center_y);
+    glVertex2d(center_x - 5, center_y + 10);
+    glVertex2d(center_x + 5, center_y + 10);
+    glVertex2d(center_x + 5, center_y);
+    glVertex2d(center_x + 10, center_y);
+    LOG_INFO("center x: " << center_x << " y: " << center_y << " p2 x: " << point_to_x << " p2 y: " << point_to_y << " atan: " << atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x)));
+    /*glRotated(atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x)), 0, 0, 1);*/
+    glEnd();
+    glRotatef(M_PI/4.0, 0, 0, 1);
+    glPopMatrix();
+}
+
+void init_GL_attrs(void) {
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+}
+
+void init_GL(void) {
+    glShadeModel(GL_SMOOTH);
+    glClearColor(1.0, 1.0, 1.0, 0.0);
+    glClearDepth(1.0);
+    /*glEnable(GL_DEPTH_TEST);*/
+    /*glDepthFunc(GL_LEQUAL);*/
+    /*glHint .. any? */
+}
+
+void set2D(void) {
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, VIDEO_W, VIDEO_H, 0, 0, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+}
+
+void unset2D(void) {
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+}
+
 int main (int argc, char * argv[]) {
     SDL_Surface * surface = NULL;
+    uint32_t video_flags = 0x0;
+    const SDL_VideoInfo * video_info = NULL;
 
     signal(SIGINT, sig_handle);
     signal(SIGTERM, sig_handle);
 
-    LOG_INFO("ala ma kota");
     if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) != 0) {
         LOG_ERR("SDL init failed: " << SDL_GetError());
         return 0;
     }
 
-    surface = SDL_SetVideoMode(VIDEO_W, VIDEO_H, VIDEO_BPP, SDL_HWSURFACE|SDL_DOUBLEBUF);
+    video_info = SDL_GetVideoInfo();
+    LOG_INFO("video mem (kb): " << video_info->video_mem);
+
+    video_flags = SDL_OPENGL | SDL_GL_DOUBLEBUFFER | SDL_HWPALETTE;
+    if (video_info->hw_available) {
+        LOG_INFO("VIDEO: surface stored in HW");
+        video_flags |= SDL_HWSURFACE;
+    } else {
+        LOG_WARN("VIDEO: surface stored in SW");
+        video_flags |= SDL_SWSURFACE;
+    }
+    
+    if (video_info->blit_hw) {
+        LOG_INFO("VIDEO: HW accelerated blit");
+        video_flags |= SDL_HWACCEL;
+    } else {
+        LOG_WARN("VIDEO: no HW accelerated blit");
+    }
+
+    init_GL_attrs();
+    surface = SDL_SetVideoMode(VIDEO_W, VIDEO_H, VIDEO_BPP, video_flags);
     if (NULL != surface) {
         LOG_INFO("surface ready");
     } else {
         LOG_ERR("SDL surface failed: " << SDL_GetError());
         goto cleanup;
     }
+    init_GL();
 
     player_img = IMG_Load(PLAYER_IMG);
     if (NULL != player_img) {
@@ -78,7 +167,7 @@ int main (int argc, char * argv[]) {
         LOG_ERR("mixer not open: " << Mix_GetError());
         goto cleanup;
     } else {
-        LOG_ERR("mixer open");
+        LOG_INFO("mixer open");
         shoot_snd = Mix_LoadWAV(SHOOT_SND);
         if (NULL == shoot_snd) 
             LOG_ERR("failed to load: " << SHOOT_SND << ": " << Mix_GetError());
@@ -89,8 +178,8 @@ int main (int argc, char * argv[]) {
 
     player_x = surface->w / 2.0 - player_img->w / 2.0;
     player_y = surface->h / 2.0 - player_img->h / 2.0;
-    SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));
-    draw_img(player_img, surface, player_x, player_y);
+    /*SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));
+    draw_img(player_img, surface, player_x, player_y);*/
     do_run = true;
 
     last_tick = SDL_GetTicks();
@@ -134,6 +223,8 @@ int main (int argc, char * argv[]) {
                     break;
                 case SDL_MOUSEMOTION:
                     LOG_INFO("mouse motion, x: " << ev.motion.x << " y: " << ev.motion.y);
+                    pointer_x = ev.motion.x;
+                    pointer_y = ev.motion.y;
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                 case SDL_MOUSEBUTTONUP:
@@ -170,13 +261,20 @@ int main (int argc, char * argv[]) {
                     break;
             }
         }
-        if (SDL_GetTicks() - last_tick > 500) {
-            SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));
+        /*if (SDL_GetTicks() - last_tick > 50) {
+            last_tick = SDL_GetTicks(); */
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            /*SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));*/
             player_x += player_moving_x;
             player_y -= player_moving_y;
-            draw_img(player_img, surface, player_x, player_y);
-            SDL_Flip(surface);
-        }
+            set2D();
+            /*draw_img(player_img, surface, player_x, player_y);*/
+            /*draw_player(player_x, player_y);*/
+            draw_arrow(1,1,pointer_x, pointer_y);
+            unset2D();
+            /* fix this ^^^^^ */
+            SDL_GL_SwapBuffers();
+       /* }*/
         //LOG_INFO("poll finished");
     }
 cleanup:
