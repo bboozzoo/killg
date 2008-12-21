@@ -63,10 +63,11 @@ void sig_handle(int signal) {
     do_run = false;
 }
 
-void draw_player(uint32_t x, uint32_t y) {
+void draw_player(uint32_t x, uint32_t y, uint32_t facing) {
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(x, y, 0);
+    glRotated(facing, 0, 0, 1);
     glBegin(GL_QUADS);
     glColor3ub(255, 0, 0);
     glVertex2d(-10, -10);
@@ -316,7 +317,7 @@ int main (int argc, char * argv[]) {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         set2D();
-        draw_player(player_x, player_y);
+        draw_player(player_x, player_y, 45);
         draw_arrow(player_x, player_y, pointer_x, pointer_y);
         unset2D();
         /* fix this ^^^^^ */
