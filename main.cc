@@ -38,6 +38,8 @@ uint32_t player_moving_y = 0;
 uint32_t pointer_x = 0;
 uint32_t pointer_y = 0;
 uint32_t last_tick = 0;
+double center_x = VIDEO_W / 2;
+double center_y = VIDEO_H / 2;
 
 void sig_handle(int signal) {
     do_run = false;
@@ -51,34 +53,42 @@ void draw_img(SDL_Surface * img, SDL_Surface * on_what, uint32_t x, uint32_t y) 
 }
 
 void draw_player(uint32_t x, uint32_t y) {
-    glBegin(GL_TRIANGLES);
-    glColor3ub(255, 0, 0);
-    glVertex2d(x - 20, y - 10);
-    glColor3ub(0, 255, 0);
-    glVertex2d(x + 20, y - 10);
-    glColor3ub(0, 0, 255);
-    glVertex2d(x, y + 10);
-    glEnd();
-}
-
-void draw_arrow(uint32_t width, uint32_t legth, double point_to_x, double point_to_y) {
-    double center_x = VIDEO_W / 2;
-    double center_y = VIDEO_H / 2;
     glPushMatrix();
     glLoadIdentity();
+    glTranslatef(x, y, 0);
+    glBegin(GL_QUADS);
+    glColor3ub(255, 0, 0);
+    glVertex2d(-10, -10);
+    glColor3ub(0, 255, 0);
+    glVertex2d(10, -10);
+    glColor3ub(0, 0, 255);
+    glVertex2d(10, 10);
+    glColor3ub(0, 255, 0);
+    glVertex2d(-10, 10);
+    glEnd();
+    glPopMatrix();
+}
+
+void draw_arrow(uint32_t x, uint32_t y, double point_to_x, double point_to_y) {
+    double direction_angle = atan2(point_to_y - center_y, point_to_x - center_x) * 180.0 / M_PI + 90.0;
+
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(x, y, 0);
+    glRotated(direction_angle, 0, 0, 1);
+    glTranslatef(0, -50, 0);
     glBegin(GL_POLYGON);
     glColor3ub(0, 0, 0);
-    glVertex2d(center_x, center_y - 10);
-    glVertex2d(center_x - 10, center_y);
-    glVertex2d(center_x - 5, center_y);
-    glVertex2d(center_x - 5, center_y + 10);
-    glVertex2d(center_x + 5, center_y + 10);
-    glVertex2d(center_x + 5, center_y);
-    glVertex2d(center_x + 10, center_y);
-    LOG_INFO("center x: " << center_x << " y: " << center_y << " p2 x: " << point_to_x << " p2 y: " << point_to_y << " atan: " << atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x)));
+    glVertex2d(0, - 10);
+    glVertex2d(- 10, 0);
+    glVertex2d(- 5, 0);
+    glVertex2d(- 5, 10);
+    glVertex2d(5, 10);
+    glVertex2d(5, 0);
+    glVertex2d(10, 0);
+/*    LOG_INFO("center x: " << center_x << " y: " << center_y << " p2 x: " << point_to_x << " p2 y: " << point_to_y << " atan: " << atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x))); */
     /*glRotated(atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x)), 0, 0, 1);*/
     glEnd();
-    glRotatef(M_PI/4.0, 0, 0, 1);
     glPopMatrix();
 }
 
@@ -269,8 +279,8 @@ int main (int argc, char * argv[]) {
             player_y -= player_moving_y;
             set2D();
             /*draw_img(player_img, surface, player_x, player_y);*/
-            /*draw_player(player_x, player_y);*/
-            draw_arrow(1,1,pointer_x, pointer_y);
+            draw_player(player_x, player_y);
+            draw_arrow(player_x, player_y, pointer_x, pointer_y);
             unset2D();
             /* fix this ^^^^^ */
             SDL_GL_SwapBuffers();
