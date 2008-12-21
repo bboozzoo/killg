@@ -70,8 +70,9 @@ void draw_player(uint32_t x, uint32_t y) {
 }
 
 void draw_arrow(uint32_t x, uint32_t y, double point_to_x, double point_to_y) {
-    double direction_angle = atan2(point_to_y - center_y, point_to_x - center_x) * 180.0 / M_PI + 90.0;
+    double direction_angle = atan2(point_to_y - y, point_to_x - x) * 180.0 / M_PI + 90.0;
 
+    LOG_INFO("pointer x: " << point_to_x << " y: " << point_to_y << " player x: " << x << " y: " << y);
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(x, y, 0);
