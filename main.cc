@@ -72,7 +72,7 @@ void draw_player(uint32_t x, uint32_t y) {
 void draw_arrow(uint32_t x, uint32_t y, double point_to_x, double point_to_y) {
     double direction_angle = atan2(point_to_y - y, point_to_x - x) * 180.0 / M_PI + 90.0;
 
-    LOG_INFO("pointer x: " << point_to_x << " y: " << point_to_y << " player x: " << x << " y: " << y);
+    /*LOG_INFO("pointer x: " << point_to_x << " y: " << point_to_y << " player x: " << x << " y: " << y);*/
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(x, y, 0);
@@ -200,36 +200,51 @@ int main (int argc, char * argv[]) {
         while (SDL_PollEvent(&ev)) {
             switch (ev.type) {
                 case SDL_KEYDOWN:
+                    LOG_INFO("key down, key: " << ev.key.keysym.sym);
+                    switch (ev.key.keysym.sym) {
+                        case KEY_UP:
+                            LOG_INFO("up");
+                            player_moving_y += 1;
+                            break;
+                        case KEY_DOWN:
+                            LOG_INFO("down");
+                            player_moving_y += -1;
+                            break;
+                        case KEY_LEFT:
+                            LOG_INFO("left");
+                            player_moving_x += -1;
+                            break;
+                        case KEY_RIGHT:
+                            LOG_INFO("right");
+                            player_moving_x += 1;
+                            break;
+                        default:
+                            LOG_INFO("other");
+                            break;
+                    }
+                    break;
                 case SDL_KEYUP:
-                    if (SDL_KEYDOWN == ev.type) {
-                        LOG_INFO("key down, key: " << ev.key.keysym.sym);
-                        switch (ev.key.keysym.sym) {
-                            case KEY_UP:
-                                LOG_INFO("up");
-                                player_moving_y = 1;
-                                break;
-                            case KEY_DOWN:
-                                LOG_INFO("down");
-                                player_moving_y = -1;
-                                break;
-                            case KEY_LEFT:
-                                LOG_INFO("left");
-                                player_moving_x = -1;
-                                break;
-                            case KEY_RIGHT:
-                                LOG_INFO("right");
-                                player_moving_x = 1;
-                                break;
-                            default:
-                                LOG_INFO("other");
-                                break;
-                        }
-                    } else {
-                        LOG_INFO("key up, key: " << ev.key.keysym.sym);
-                        if (KEY_DOWN == ev.key.keysym.sym || KEY_UP == ev.key.keysym.sym)
-                            player_moving_y = 0;
-                        else if (KEY_LEFT == ev.key.keysym.sym || KEY_RIGHT == ev.key.keysym.sym)
-                            player_moving_x = 0;
+                    LOG_INFO("key up, key: " << ev.key.keysym.sym);
+                    switch (ev.key.keysym.sym) {
+                        case KEY_UP:
+                            LOG_INFO("up");
+                            player_moving_y -= 1;
+                            break;
+                        case KEY_DOWN:
+                            LOG_INFO("down");
+                            player_moving_y -= -1;
+                            break;
+                        case KEY_LEFT:
+                            LOG_INFO("left");
+                            player_moving_x -= -1;
+                            break;
+                        case KEY_RIGHT:
+                            LOG_INFO("right");
+                            player_moving_x -= 1;
+                            break;
+                        default:
+                            LOG_INFO("other");
+                            break;
                     }
                     break;
                 case SDL_MOUSEMOTION:
