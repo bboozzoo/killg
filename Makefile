@@ -1,7 +1,7 @@
 SRCS=main.cc
 
 TARGET=killg
-CXXFLAGS=$(shell sdl-config --cflags) -DUSE_OPENGL
+CXXFLAGS=$(shell sdl-config --cflags) -DLOG_ENABLE
 LDFLAGS=$(shell sdl-config --libs) -lSDL_mixer -lSDL_image -lGL
 
 $(TARGET): $(SRCS:.cc=.o)

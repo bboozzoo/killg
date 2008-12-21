@@ -2,10 +2,14 @@
 #define __LOGGER_H__
 #include <iostream>
 
+#ifdef LOG_ENABLE
 #define LOG(__lvl, __x) \
     do { \
         std::cerr << __FILE__ << ":" << __LINE__ << " " << #__lvl << ": " << __x << std::endl; \
     } while(0)
+#else
+#define LOG(__lvl, __x)
+#endif
 
 #define LOG_ERR(__x) LOG(ERR, __x)
 #define LOG_WARN(__x) LOG(WARN, __x)

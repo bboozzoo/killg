@@ -40,6 +40,7 @@ uint32_t pointer_y = 0;
 uint32_t last_tick = 0;
 double center_x = VIDEO_W / 2;
 double center_y = VIDEO_H / 2;
+uint32_t frames = 0;
 
 void sig_handle(int signal) {
     do_run = false;
@@ -187,7 +188,6 @@ int main (int argc, char * argv[]) {
     last_tick = SDL_GetTicks();
     while (do_run) {
         SDL_Event ev;
-        //LOG_INFO("poll event");
         while (SDL_PollEvent(&ev)) {
             switch (ev.type) {
                 case SDL_KEYDOWN:
@@ -278,36 +278,41 @@ int main (int argc, char * argv[]) {
                     break;
             }
         }
-        /*if (SDL_GetTicks() - last_tick > 50) {
-            last_tick = SDL_GetTicks(); */
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            /*SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 255, 255, 255));*/
-            player_x += player_moving_x;
-            player_y -= player_moving_y;
-            if (player_x > VIDEO_W) {
-                LOG_INFO("player -> far right end");
-                player_x = VIDEO_W;
-            } else if (player_x < 0) {
-                LOG_INFO("player -> far left end");
-                player_x = 0;
-            }
 
-            if (player_y > VIDEO_H) {
-                LOG_INFO("player -> far bottom end");
-                player_y = VIDEO_H;
-            } else if (player_y < 0) {
-                LOG_INFO("player -> far top end");
-                player_y = 0;
-            }
+        player_x += player_moving_x;
+        player_y -= player_moving_y;
+        if (player_x > VIDEO_W) {
+            LOG_INFO("player -> far right end");
+            player_x = VIDEO_W;
+        } else if (player_x < 0) {
+            LOG_INFO("player -> far left end");
+            player_x = 0;
+        }
 
-            set2D();
-            draw_player(player_x, player_y);
-            draw_arrow(player_x, player_y, pointer_x, pointer_y);
-            unset2D();
-            /* fix this ^^^^^ */
-            SDL_GL_SwapBuffers();
-       /* }*/
-        //LOG_INFO("poll finished");
+        if (player_y > VIDEO_H) {
+            LOG_INFO("player -> far bottom end");
+            player_y = VIDEO_H;
+        } else if (player_y < 0) {
+            LOG_INFO("player -> far top end");
+            player_y = 0;
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        set2D();
+        draw_player(player_x, player_y);
+        draw_arrow(player_x, player_y, pointer_x, pointer_y);
+        unset2D();
+        /* fix this ^^^^^ */
+        SDL_GL_SwapBuffers();
+
+        frames++;
+        if (SDL_GetTicks() - last_tick > 5000) {
+            uint32_t now = SDL_GetTicks();
+            float fps = frames / ((double) (now - last_tick) / 1000.0);
+            LOG_INFO("FPS: " << fps);
+            last_tick = now;
+            frames = 0;
+        }
     }
 cleanup:
     LOG_INFO("quit");
