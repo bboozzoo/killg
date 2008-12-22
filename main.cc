@@ -20,7 +20,6 @@
 #include "logger.h"
 #include <SDL/SDL.h>
 #include <SDL/SDL_mixer.h>
-#include <SDL/SDL_image.h>
 #include <GL/gl.h>
 #include <SOIL/SOIL.h>
 
@@ -43,6 +42,8 @@
 
 #define PLAYER_IMG "data/player.png"
 #define GROUND_IMG "data/ground.png"
+#define CROSS_IMG "data/cross.png"
+#define ARROW_IMG "data/arrow.png"
 
 
 /* static stuff */
@@ -62,8 +63,25 @@ double center_x = VIDEO_W / 2;
 double center_y = VIDEO_H / 2;
 uint32_t frames = 0;
 
-GLuint ground_texture = 0;
-SDL_Surface * surface = NULL;
+typedef enum {
+    TEXTURE_GROUND = 0,
+    TEXTURE_CROSS,
+    TEXTURE_ARROW,
+    TEXTURE_PLAYER,
+    TEXTURE_MAX
+} texture_id_t;
+
+struct texture_info_s {
+    texture_id_t id;
+    const char * file;
+} texture_info[TEXTURE_MAX + 1] = { { TEXTURE_GROUND, GROUND_IMG },
+                    { TEXTURE_CROSS, CROSS_IMG },
+                    { TEXTURE_ARROW, ARROW_IMG },
+                    { TEXTURE_PLAYER, PLAYER_IMG},
+                    { (texture_id_t) 0, NULL } };
+
+uint32_t textures[TEXTURE_MAX] = {0};
+
 
 void sig_handle(int signal) {
     do_run = false;
@@ -72,7 +90,7 @@ void sig_handle(int signal) {
 void draw_ground(void) {
     glPushMatrix();
     glLoadIdentity();
-    glBindTexture(GL_TEXTURE_2D, ground_texture);
+    glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_GROUND]);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0); 
     glVertex3d(0, 0, 0);
@@ -86,61 +104,25 @@ void draw_ground(void) {
     glBindTexture(GL_TEXTURE_2D, 0);
     glPopMatrix();
 }
-void draw_ground_notex(void) {
-    glPushMatrix();
-    glLoadIdentity();
-    glBegin(GL_QUADS);
-    glColor3ub(0, 100, 0);
-    glVertex3d(0, 0, 0);
-    glColor3ub(0, 100, 0);
-    glVertex3d(VIDEO_W, 0, 0);
-    glColor3ub(0, 100, 0);
-    glVertex3d(VIDEO_W, VIDEO_H, 0);
-    glColor3ub(0, 100, 0);
-    glVertex3d(0, VIDEO_H, 0);
-    glEnd();
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glPopMatrix();
-}
 
-int load_ground_texture(void) {
-/*
-    SDL_Surface * ground_img = IMG_Load(GROUND_IMG);
-    SDL_Surface * temp_img = NULL;
-    SDL_PixelFormat * pixel_format = surface->format; 
-    LOG_INFO("bytes per pixel: " << pixel_format->BytesPerPixel);
-    if (ground_img == NULL) {
-        LOG_ERR("failed to load ground texture: " << IMG_GetError());
-        return -1;
-    }
-
-    temp_img = SDL_CreateRGBSurface(SDL_SWSURFACE, ground_img->w, ground_img->h, 32, 
-                                              pixel_format->Bmask, pixel_format->Gmask, pixel_format->Rmask, pixel_format->Amask );
-
-    SDL_SetAlpha(ground_img, 0, 0);
-    SDL_BlitSurface(ground_img, NULL, temp_img, NULL);
-
-    glGenTextures(1, &ground_texture);
-    glBindTexture(GL_TEXTURE_2D, ground_texture);
-    LOG_INFO("ground texture: " << ground_texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, temp_img->w, temp_img->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, temp_img->pixels );
-
-    SDL_FreeSurface(temp_img);
-*/
-/*    glTexImage2D(GL_TEXTURE_2D, 0, 3, ground_img->w, ground_img->h, 0, GL_RGB, GL_UNSIGNED_BYTE, ground_img->pixels);*/
-/*    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-*/
- /*   SDL_FreeSurface(ground_img); */
-    ground_texture = SOIL_load_OGL_texture(GROUND_IMG, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, 0);
-    if (0 == ground_texture) {
+int load_texture(const char * file_name, uint32_t * texture_id) {
+    *texture_id = SOIL_load_OGL_texture(file_name, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+    if (0 == *texture_id ) {
         LOG_ERR("failed to load texture file: " << SOIL_last_result());
         return -1;
     }   
+    return 0;
+}
+
+int load_all_textures(void) {
+    for (int i = 0; i < TEXTURE_MAX; i++) {
+        if (NULL == texture_info[i].file)
+            break;
+        if (-1 == load_texture(texture_info[i].file, &textures[texture_info[i].id])) {
+            LOG_ERR("failed to load texture file: " << texture_info[i].file);
+            return -1;
+        }
+    }
     return 0;
 }
 
@@ -149,37 +131,57 @@ void draw_player(uint32_t x, uint32_t y, double direction_angle) {
     glLoadIdentity();
     glTranslatef(x, y, 0);
     glRotated(direction_angle, 0, 0, 1);
-    glBegin(GL_TRIANGLES);
-    glColor3ub(255, 0, 0);
-    glVertex2d(-10, 5);
-    glColor3ub(0, 255, 0);
-    glVertex2d(10, 5);
-    glColor3ub(0, 0, 255);
-    glVertex2d(0, -10);
+    glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_PLAYER]);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);
+    glVertex2d(-15, 15);
+    glTexCoord2f(1.0, 0);
+    glVertex2d(15, 15);
+    glTexCoord2f(1.0, 1.0);
+    glVertex2d(15, -15);
+    glTexCoord2f(0, 1.0);
+    glVertex2d(-15, -15);
+    glEnd();
+    glPopMatrix();
+}
+
+void draw_cross(uint32_t x, uint32_t y) {
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(x, y, 0);
+    /*
+    glRotated(direction_angle, 0, 0, 1);
+    */
+    glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_CROSS]);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);
+    glVertex2d(-15, -15);
+    glTexCoord2f(1.0, 0);
+    glVertex2d(15, -15);
+    glTexCoord2f(1.0, 1.0);
+    glVertex2d(15, 15);
+    glTexCoord2f(0, 1.0);
+    glVertex2d(-15, 15);
     glEnd();
     glPopMatrix();
 }
 
 void draw_arrow(uint32_t x, uint32_t y, double direction_angle) {
-    /*double direction_angle = atan2(point_to_y - y, point_to_x - x) * 180.0 / M_PI + 90.0;*/
-
-    /*LOG_INFO("pointer x: " << point_to_x << " y: " << point_to_y << " player x: " << x << " y: " << y);*/
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(x, y, 0);
     glRotated(direction_angle, 0, 0, 1);
     glTranslatef(0, -50, 0);
-    glBegin(GL_POLYGON);
-    glColor3ub(0, 0, 0);
-    glVertex2d(0, - 10);
-    glVertex2d(- 10, 0);
-    glVertex2d(- 5, 0);
-    glVertex2d(- 5, 10);
-    glVertex2d(5, 10);
-    glVertex2d(5, 0);
-    glVertex2d(10, 0);
-/*    LOG_INFO("center x: " << center_x << " y: " << center_y << " p2 x: " << point_to_x << " p2 y: " << point_to_y << " atan: " << atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x))); */
-    /*glRotated(atan((double) (point_to_y - center_y) / (double) (point_to_x / center_x)), 0, 0, 1);*/
+    glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_ARROW]);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 1.0);
+    glVertex2d(-10, -10);
+    glTexCoord2f(1.0, 1.0);
+    glVertex2d(10, -10);
+    glTexCoord2f(1.0, 0);
+    glVertex2d(10, 10);
+    glTexCoord2f(0, 0);
+    glVertex2d(-10, 10);
     glEnd();
     glPopMatrix();
 }
@@ -198,21 +200,19 @@ void init_GL(void) {
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
     glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
     glEnable(GL_TEXTURE_2D);
+    /*glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_EQUAL, 1.0);*/
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void set2D(void) {
-/*    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, VIDEO_W, VIDEO_H, 0, 0, 1); */
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
 }
 
 void unset2D(void) {
-/*    glMatrixMode(GL_PROJECTION);
-    glPopMatrix(); */
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
 }
@@ -220,6 +220,7 @@ void unset2D(void) {
 int main (int argc, char * argv[]) {
     uint32_t video_flags = 0x0;
     const SDL_VideoInfo * video_info = NULL;
+    SDL_Surface * surface = NULL;
 
     signal(SIGINT, sig_handle);
     signal(SIGTERM, sig_handle);
@@ -257,17 +258,8 @@ int main (int argc, char * argv[]) {
         goto cleanup;
     }
     init_GL();
+    SDL_ShowCursor(SDL_DISABLE);
 
-    /*
-    player_img = IMG_Load(PLAYER_IMG);
-    if (NULL != player_img) {
-        LOG_INFO("player image ready, width: " << player_img->w << " height: " << player_img->h);
-
-    } else {
-        LOG_ERR("player image loading error: " << IMG_GetError());
-        goto cleanup;
-    }
-*/
     if (Mix_OpenAudio(AUDIO_RATE, AUDIO_FORMAT, AUDIO_CHANNELS, AUDIO_BUFFERS) != 0) {
         LOG_ERR("mixer not open: " << Mix_GetError());
         goto cleanup;
@@ -281,8 +273,8 @@ int main (int argc, char * argv[]) {
             LOG_ERR("failed to load: " << RELOAD_SND << ": " << Mix_GetError());
     }
 
-    if (load_ground_texture() != 0) {
-        LOG_ERR("error loading ground texture");
+    if (load_all_textures() != 0) {
+        LOG_ERR("error loading textures");
         goto cleanup;
     }
 
@@ -412,6 +404,7 @@ int main (int argc, char * argv[]) {
             draw_ground();
             draw_player(player_x, player_y, direction_angle);
             draw_arrow(player_x, player_y, direction_angle);
+            draw_cross(pointer_x, pointer_y);
         }
         unset2D();
         /* fix this ^^^^^ */
