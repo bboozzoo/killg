@@ -44,6 +44,7 @@
 #define GROUND_IMG "data/ground.png"
 #define CROSS_IMG "data/cross.png"
 #define ARROW_IMG "data/arrow.png"
+#define MONSTER_IMG "data/monster.png"
 
 
 /* static stuff */
@@ -68,17 +69,21 @@ typedef enum {
     TEXTURE_CROSS,
     TEXTURE_ARROW,
     TEXTURE_PLAYER,
+    TEXTURE_MONSTER,
     TEXTURE_MAX
 } texture_id_t;
 
 struct texture_info_s {
     texture_id_t id;
     const char * file;
-} texture_info[TEXTURE_MAX + 1] = { { TEXTURE_GROUND, GROUND_IMG },
+} texture_info[TEXTURE_MAX + 1] = { 
+                    { TEXTURE_GROUND, GROUND_IMG },
                     { TEXTURE_CROSS, CROSS_IMG },
                     { TEXTURE_ARROW, ARROW_IMG },
                     { TEXTURE_PLAYER, PLAYER_IMG},
-                    { (texture_id_t) 0, NULL } };
+                    { TEXTURE_MONSTER, MONSTER_IMG},
+                    { (texture_id_t) 0, NULL } 
+                    };
 
 uint32_t textures[TEXTURE_MAX] = {0};
 
@@ -186,6 +191,25 @@ void draw_arrow(uint32_t x, uint32_t y, double direction_angle) {
     glPopMatrix();
 }
 
+void draw_monster(uint32_t x, uint32_t y, double direction_angle) {
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(x, y, 0);
+    glRotated(direction_angle, 0, 0, 1);
+    glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_MONSTER]);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 1.0);
+    glVertex2d(-10, -10);
+    glTexCoord2f(1.0, 1.0);
+    glVertex2d(10, -10);
+    glTexCoord2f(1.0, 0);
+    glVertex2d(10, 10);
+    glTexCoord2f(0, 0);
+    glVertex2d(-10, 10);
+    glEnd();
+    glPopMatrix();
+}
+
 void init_GL_attrs(void) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 }
@@ -213,7 +237,9 @@ void set2D(void) {
 }
 
 void unset2D(void) {
-    glMatrixMode(GL_MODELVIEW);
+    /*
+    glMatrixMode(GL_MODELVIEW); 
+    */
     glPopMatrix();
 }
 
@@ -404,6 +430,7 @@ int main (int argc, char * argv[]) {
             draw_ground();
             draw_player(player_x, player_y, direction_angle);
             draw_arrow(player_x, player_y, direction_angle);
+            draw_monster(400, 400, 45);
             draw_cross(pointer_x, pointer_y);
         }
         unset2D();
@@ -414,7 +441,7 @@ int main (int argc, char * argv[]) {
         if (SDL_GetTicks() - last_tick > 5000) {
             uint32_t now = SDL_GetTicks();
             float fps = frames / ((double) (now - last_tick) / 1000.0);
-            LOG_INFO("FPS: " << fps);
+            LOG_STAT("FPS: " << fps);
             last_tick = now;
             frames = 0;
         }

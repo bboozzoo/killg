@@ -1,7 +1,7 @@
 SRCS=main.cc
 
 TARGET=killg
-CXXFLAGS=$(shell sdl-config --cflags) -DLOG_ENABLE
+CXXFLAGS=$(shell sdl-config --cflags) -O2 -fomit-frame-pointer #-DLOG_ENABLE
 LDFLAGS=$(shell sdl-config --libs) -lSDL_mixer -lGL -lSOIL
 
 $(TARGET): $(SRCS:.cc=.o)

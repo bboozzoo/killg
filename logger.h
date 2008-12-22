@@ -19,11 +19,14 @@
 #define __LOGGER_H__
 #include <iostream>
 
-#ifdef LOG_ENABLE
-#define LOG(__lvl, __x) \
+#define __LOG(__lvl, __x) \
     do { \
         std::cerr << __FILE__ << ":" << __LINE__ << " " << #__lvl << ": " << __x << std::endl; \
     } while(0)
+#define LOG_STAT(__x) __LOG(STAT, __x)
+
+#ifdef LOG_ENABLE
+#define LOG(__lvl, __x) __LOG(__lvl, __x)
 #else
 #define LOG(__lvl, __x)
 #endif
