@@ -22,9 +22,10 @@
 #include <SDL/SDL_mixer.h>
 #include <SDL/SDL_image.h>
 #include <GL/gl.h>
+#include <SOIL/SOIL.h>
 
-#define VIDEO_W 640
-#define VIDEO_H 480
+#define VIDEO_W 800
+#define VIDEO_H 600
 #define VIDEO_BPP 32
 
 #define KEY_UP SDLK_w
@@ -41,6 +42,7 @@
 #define RELOAD_SND "data/reload.wav"
 
 #define PLAYER_IMG "data/player.png"
+#define GROUND_IMG "data/ground.png"
 
 
 /* static stuff */
@@ -52,6 +54,7 @@ int32_t player_x = 0;
 int32_t player_y = 0;
 int32_t player_moving_x = 0;
 int32_t player_moving_y = 0;
+int32_t player_angle = 0;
 uint32_t pointer_x = 0;
 uint32_t pointer_y = 0;
 uint32_t last_tick = 0;
@@ -59,30 +62,106 @@ double center_x = VIDEO_W / 2;
 double center_y = VIDEO_H / 2;
 uint32_t frames = 0;
 
+GLuint ground_texture = 0;
+SDL_Surface * surface = NULL;
+
 void sig_handle(int signal) {
     do_run = false;
 }
 
-void draw_player(uint32_t x, uint32_t y, uint32_t facing) {
+void draw_ground(void) {
+    glPushMatrix();
+    glLoadIdentity();
+    glBindTexture(GL_TEXTURE_2D, ground_texture);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0); 
+    glVertex3d(0, 0, 0);
+    glTexCoord2f(1.0, 0); 
+    glVertex3d(VIDEO_W, 0, 0);
+    glTexCoord2f(1.0, 1.0); 
+    glVertex3d(VIDEO_W, VIDEO_H, 0);
+    glTexCoord2f(0, 1.0); 
+    glVertex3d(0, VIDEO_H, 0);
+    glEnd();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glPopMatrix();
+}
+void draw_ground_notex(void) {
+    glPushMatrix();
+    glLoadIdentity();
+    glBegin(GL_QUADS);
+    glColor3ub(0, 100, 0);
+    glVertex3d(0, 0, 0);
+    glColor3ub(0, 100, 0);
+    glVertex3d(VIDEO_W, 0, 0);
+    glColor3ub(0, 100, 0);
+    glVertex3d(VIDEO_W, VIDEO_H, 0);
+    glColor3ub(0, 100, 0);
+    glVertex3d(0, VIDEO_H, 0);
+    glEnd();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glPopMatrix();
+}
+
+int load_ground_texture(void) {
+/*
+    SDL_Surface * ground_img = IMG_Load(GROUND_IMG);
+    SDL_Surface * temp_img = NULL;
+    SDL_PixelFormat * pixel_format = surface->format; 
+    LOG_INFO("bytes per pixel: " << pixel_format->BytesPerPixel);
+    if (ground_img == NULL) {
+        LOG_ERR("failed to load ground texture: " << IMG_GetError());
+        return -1;
+    }
+
+    temp_img = SDL_CreateRGBSurface(SDL_SWSURFACE, ground_img->w, ground_img->h, 32, 
+                                              pixel_format->Bmask, pixel_format->Gmask, pixel_format->Rmask, pixel_format->Amask );
+
+    SDL_SetAlpha(ground_img, 0, 0);
+    SDL_BlitSurface(ground_img, NULL, temp_img, NULL);
+
+    glGenTextures(1, &ground_texture);
+    glBindTexture(GL_TEXTURE_2D, ground_texture);
+    LOG_INFO("ground texture: " << ground_texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, temp_img->w, temp_img->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, temp_img->pixels );
+
+    SDL_FreeSurface(temp_img);
+*/
+/*    glTexImage2D(GL_TEXTURE_2D, 0, 3, ground_img->w, ground_img->h, 0, GL_RGB, GL_UNSIGNED_BYTE, ground_img->pixels);*/
+/*    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+*/
+ /*   SDL_FreeSurface(ground_img); */
+    ground_texture = SOIL_load_OGL_texture(GROUND_IMG, SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, 0);
+    if (0 == ground_texture) {
+        LOG_ERR("failed to load texture file: " << SOIL_last_result());
+        return -1;
+    }   
+    return 0;
+}
+
+void draw_player(uint32_t x, uint32_t y, double direction_angle) {
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(x, y, 0);
-    glRotated(facing, 0, 0, 1);
-    glBegin(GL_QUADS);
+    glRotated(direction_angle, 0, 0, 1);
+    glBegin(GL_TRIANGLES);
     glColor3ub(255, 0, 0);
-    glVertex2d(-10, -10);
+    glVertex2d(-10, 5);
     glColor3ub(0, 255, 0);
-    glVertex2d(10, -10);
+    glVertex2d(10, 5);
     glColor3ub(0, 0, 255);
-    glVertex2d(10, 10);
-    glColor3ub(0, 255, 0);
-    glVertex2d(-10, 10);
+    glVertex2d(0, -10);
     glEnd();
     glPopMatrix();
 }
 
-void draw_arrow(uint32_t x, uint32_t y, double point_to_x, double point_to_y) {
-    double direction_angle = atan2(point_to_y - y, point_to_x - x) * 180.0 / M_PI + 90.0;
+void draw_arrow(uint32_t x, uint32_t y, double direction_angle) {
+    /*double direction_angle = atan2(point_to_y - y, point_to_x - x) * 180.0 / M_PI + 90.0;*/
 
     /*LOG_INFO("pointer x: " << point_to_x << " y: " << point_to_y << " player x: " << x << " y: " << y);*/
     glPushMatrix();
@@ -113,30 +192,32 @@ void init_GL(void) {
     glShadeModel(GL_SMOOTH);
     glClearColor(1.0, 1.0, 1.0, 0.0);
     glClearDepth(1.0);
-    /*glEnable(GL_DEPTH_TEST);*/
-    /*glDepthFunc(GL_LEQUAL);*/
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     /*glHint .. any? */
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+    glEnable(GL_TEXTURE_2D);
 }
 
 void set2D(void) {
-    glMatrixMode(GL_PROJECTION);
+/*    glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    glOrtho(0, VIDEO_W, VIDEO_H, 0, 0, 1);
+    glOrtho(0, VIDEO_W, VIDEO_H, 0, 0, 1); */
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
 }
 
 void unset2D(void) {
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
+/*    glMatrixMode(GL_PROJECTION);
+    glPopMatrix(); */
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
 }
 
 int main (int argc, char * argv[]) {
-    SDL_Surface * surface = NULL;
     uint32_t video_flags = 0x0;
     const SDL_VideoInfo * video_info = NULL;
 
@@ -177,6 +258,7 @@ int main (int argc, char * argv[]) {
     }
     init_GL();
 
+    /*
     player_img = IMG_Load(PLAYER_IMG);
     if (NULL != player_img) {
         LOG_INFO("player image ready, width: " << player_img->w << " height: " << player_img->h);
@@ -185,7 +267,7 @@ int main (int argc, char * argv[]) {
         LOG_ERR("player image loading error: " << IMG_GetError());
         goto cleanup;
     }
-
+*/
     if (Mix_OpenAudio(AUDIO_RATE, AUDIO_FORMAT, AUDIO_CHANNELS, AUDIO_BUFFERS) != 0) {
         LOG_ERR("mixer not open: " << Mix_GetError());
         goto cleanup;
@@ -199,11 +281,19 @@ int main (int argc, char * argv[]) {
             LOG_ERR("failed to load: " << RELOAD_SND << ": " << Mix_GetError());
     }
 
-    player_x = surface->w / 2.0 - player_img->w / 2.0;
-    player_y = surface->h / 2.0 - player_img->h / 2.0;
+    if (load_ground_texture() != 0) {
+        LOG_ERR("error loading ground texture");
+        goto cleanup;
+    }
+
+    player_x = surface->w / 2.0; /* - player_img->w / 2.0;*/
+    player_y = surface->h / 2.0; /* - player_img->h / 2.0; */
     do_run = true;
 
     last_tick = SDL_GetTicks();
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, VIDEO_W, VIDEO_H, 0, 0, 1);
     while (do_run) {
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
@@ -213,11 +303,11 @@ int main (int argc, char * argv[]) {
                     switch (ev.key.keysym.sym) {
                         case KEY_UP:
                             LOG_INFO("up");
-                            player_moving_y += 1;
+                            player_moving_y -= 1;
                             break;
                         case KEY_DOWN:
                             LOG_INFO("down");
-                            player_moving_y += -1;
+                            player_moving_y += 1;
                             break;
                         case KEY_LEFT:
                             LOG_INFO("left");
@@ -237,11 +327,11 @@ int main (int argc, char * argv[]) {
                     switch (ev.key.keysym.sym) {
                         case KEY_UP:
                             LOG_INFO("up");
-                            player_moving_y -= 1;
+                            player_moving_y += 1;
                             break;
                         case KEY_DOWN:
                             LOG_INFO("down");
-                            player_moving_y -= -1;
+                            player_moving_y -= 1;
                             break;
                         case KEY_LEFT:
                             LOG_INFO("left");
@@ -298,7 +388,7 @@ int main (int argc, char * argv[]) {
         }
 
         player_x += player_moving_x;
-        player_y -= player_moving_y;
+        player_y += player_moving_y;
         if (player_x > VIDEO_W) {
             LOG_INFO("player -> far right end");
             player_x = VIDEO_W;
@@ -316,9 +406,13 @@ int main (int argc, char * argv[]) {
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        set2D();
-        draw_player(player_x, player_y, 45);
-        draw_arrow(player_x, player_y, pointer_x, pointer_y);
+        set2D(); 
+        {
+            double direction_angle = atan2((double) pointer_y - player_y, (double)pointer_x - player_x) * 180.0 / M_PI + 90.0;
+            draw_ground();
+            draw_player(player_x, player_y, direction_angle);
+            draw_arrow(player_x, player_y, direction_angle);
+        }
         unset2D();
         /* fix this ^^^^^ */
         SDL_GL_SwapBuffers();
