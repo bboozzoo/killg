@@ -31,6 +31,7 @@
 #define KEY_DOWN SDLK_s
 #define KEY_LEFT SDLK_a
 #define KEY_RIGHT SDLK_d
+#define KEY_FULLSCREEN SDLK_f
 
 #define AUDIO_RATE 22050
 #define AUDIO_FORMAT AUDIO_S16SYS
@@ -334,6 +335,10 @@ int main (int argc, char * argv[]) {
                         case KEY_RIGHT:
                             LOG_INFO("right");
                             player_moving_x += 1;
+                            break;
+                        case KEY_FULLSCREEN:
+                            LOG_INFO("going fullscreen");
+                            SDL_WM_ToggleFullScreen(surface);
                             break;
                         default:
                             LOG_INFO("other");
